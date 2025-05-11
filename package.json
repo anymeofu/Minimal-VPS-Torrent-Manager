@@ -1,0 +1,39 @@
+{
+  "name": "vps-torrent-manager",
+  "version": "1.0.0",
+  "description": "Minimal VPS Torrent Manager Web App",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "build:frontend": "esbuild src/frontend/index.js --bundle --outfile=public/bundle.js --loader:.js=jsx --minify",
+    "dev": "npm run build:frontend && nodemon src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "torrent",
+    "vps",
+    "download",
+    "manager"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.0.0",
+    "connect-sqlite3": "^0.9.15",
+    "cookie-parser": "^1.4.6",
+    "create-torrent": "^5.0.0",
+    "dotenv": "^16.5.0",
+    "express": "^4.17.1",
+    "express-session": "^1.17.3",
+    "extract-zip": "^2.0.1",
+    "imdb-api": "^4.4.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "sqlite3": "^5.0.2",
+    "unrar.js": "^0.2.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.14.0",
+    "nodemon": "^2.0.15"
+  }
+}

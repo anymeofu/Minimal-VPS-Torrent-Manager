@@ -1,0 +1,82 @@
+body {
+  background-color: #121212;
+  color: #e0e0e0;
+  font-family: 'monospace', monospace;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+#root {
+  flex-grow: 1;
+  padding: 20px;
+}
+
+h1, h2, h3 {
+  color: #00b8ff; /* Blue accent */
+}
+
+a {
+  color: #00ff9d; /* Green accent */
+}
+
+button {
+  background-color: #00b8ff;
+  color: #121212;
+  border: none;
+  padding: 10px 15px;
+  cursor: pointer;
+  font-family: 'monospace', monospace;
+}
+
+button:hover {
+  background-color: #009acd;
+}
+
+input, textarea, select {
+  background-color: #2c2c2c;
+  color: #e0e0e0;
+  border: 1px solid #00b8ff;
+  padding: 8px;
+  font-family: 'monospace', monospace;
+  margin-bottom: 10px;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  background-color: #1e1e1e;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-left: 3px solid #00ff9d;
+}
+
+.tabs button {
+  background-color: #1e1e1e;
+  color: #00b8ff;
+  border-bottom: 2px solid transparent;
+  margin-right: 5px;
+}
+
+.tabs button.active {
+  border-bottom: 2px solid #00ff9d;
+  color: #00ff9d;
+}
+
+.status-pending { color: #f39c12; }
+.status-downloading { color: #3498db; }
+.status-completed { color: #2ecc71; }
+.status-error { color: #e74c3c; }
+.status-extracting { color: #9b59b6; }
+
+.storage-info {
+  margin-top: 20px;
+  padding: 10px;
+  background-color: #1e1e1e;
+  border: 1px solid #00b8ff;
+}
