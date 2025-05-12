@@ -63,9 +63,8 @@ module.exports = function(db) {
         // For single file torrents, the 'name' in torrent metadata should be the actual filename
         torrentInfoName = path.basename(absoluteSourcePath);
       } else {
-        // For directory torrents, the 'name' is the root folder name in the torrent
-        // The user-provided 'name' from the form is suitable here.
-        torrentInfoName = name;
+        // For directory torrents, the 'name' in torrent metadata should be the actual directory name
+        torrentInfoName = path.basename(absoluteSourcePath);
       }
 
       const defaultTrackers = [

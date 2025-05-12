@@ -29,18 +29,11 @@ function TorrentsTab() {
     }
 
     if (nameSuggestion) {
-      // Helper to generate a suggested torrent name from a filename/foldername
-      const generateSuggestedName = (originalName) => {
-        let name = originalName;
-        // Replace dots/underscores with spaces, then multiple spaces with one
-        // We keep the extension as the user wants the original name.
-        name = name.replace(/[._]/g, ' ').replace(/\s+/g, ' ').trim();
-        return name || originalName; // Fallback to original if processing results in empty string
-      };
-      const suggestedName = generateSuggestedName(nameSuggestion);
+      // User wants the suggested name to be the exact original name
+      const suggestedName = nameSuggestion; 
       setTorrentName(suggestedName);
       sessionStorage.removeItem('torrentSourceNameSuggestion');
-      infoMessage += `Torrent name "${suggestedName}" suggested.`; // Corrected variable name here
+      infoMessage += `Torrent name "${suggestedName}" suggested.`;
     }
     
     if (infoMessage) {
