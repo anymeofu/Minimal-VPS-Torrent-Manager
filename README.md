@@ -12,10 +12,12 @@ A lightweight web application for managing downloads and torrents on a VPS, desi
     *   Display of download progress (bytes, percentage) and speed.
     *   List current and past downloads with status.
     *   Manual deletion of downloads and their associated files.
-*   **Torrent Creation**:
+    *   **Torrent Creation**:
     *   Create `.torrent` files from downloaded files or folders.
+        *   The name of the file (for single-file torrents) or the root folder (for directory torrents) *inside* the `.torrent` metadata will accurately reflect the original name on disk.
+        *   The "Torrent Name" field in the UI (which can be pre-filled from the Files tab using the exact source name) serves as a display label within the app, for the `.torrent` filename, and in the torrent's comment.
     *   Option to add custom webseed URLs.
-    *   Suggests a webseed URL pointing to the file served by this application itself (`http(s)://<your_domain_or_ip>:<port>/serve_file/...`).
+    *   Suggests a webseed URL pointing to the file served by this application itself (`http(s)://<your_domain_or_ip>:<port>/serve_file/...`) if the source is a single file.
     *   Support for private torrents.
     *   Option to specify custom tracker/announce URLs (defaults are provided).
     *   Download generated `.torrent` files.
@@ -154,9 +156,9 @@ The application will typically be accessible at `http://localhost:3001` (or the 
     *   **Actions**: Delete downloads (this also deletes the downloaded files).
 3.  **Torrents Tab**:
     *   **Create Torrent**:
-        *   **Source Path**: Enter the path to the file or folder within your `downloads/` directory (e.g., `myMovie.mp4` or `downloaded_folder`). You can use the "Use for New Torrent" button on the Files tab to pre-fill this and the Torrent Name.
-        *   **Torrent Name**: A descriptive name for your torrent.
-        *   **Webseeds**: Optionally, add comma-separated URLs for webseeds. Click "Suggest Self as Webseed" to add a URL pointing to the file served by this app (if `Source Path` is a file).
+        *   **Source Path**: Enter the path to the file or folder within your `downloads/` directory (e.g., `myMovie.mp4` or `downloaded_folder`). Use the "Use for New Torrent" button on the Files tab to pre-fill this.
+        *   **Torrent Name**: A display name for the torrent in the app. This is pre-filled with the exact source name if "Use for New Torrent" is used. This name is also used for the `.torrent` filename you download. The actual name of the content *inside* the torrent will match the source file/folder name on disk.
+        *   **Webseeds**: Optionally, add comma-separated URLs for webseeds. If the source path is a single file, click "Suggest Self as Webseed" to add a URL pointing to that file served by this app.
         *   **Trackers**: Optionally, add comma-separated tracker URLs. If left empty, default public trackers are used.
         *   **Private Torrent**: Check if this is a private torrent.
     *   **Existing Torrents**: View a list of created torrents. You can download the `.torrent` file or delete the torrent record and its file.
