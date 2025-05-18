@@ -1,9 +1,18 @@
+/* Global reset and base styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   background-color: #121212;
   color: #e0e0e0;
-  font-family: 'monospace', monospace;
-  margin: 0;
-  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  line-height: 1.6;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -11,37 +20,89 @@ body {
 
 #root {
   flex-grow: 1;
-  padding: 20px;
+  padding: 15px; /* Adjusted padding for smaller screens */
+  max-width: 1200px; /* Max container width for larger screens */
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   color: #00b8ff; /* Blue accent */
+  margin-bottom: 0.75em;
+  margin-top: 1em;
+}
+
+h1 {
+  font-size: 1.8em;
+}
+
+h2 {
+  font-size: 1.5em;
+}
+
+h3 {
+  font-size: 1.2em;
 }
 
 a {
   color: #00ff9d; /* Green accent */
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
 }
 
 button {
   background-color: #00b8ff;
-  color: #121212;
+  color: #121212; /* Dark text for better contrast on blue button */
   border: none;
-  padding: 10px 15px;
+  padding: 12px 18px; /* Slightly larger padding */
   cursor: pointer;
-  font-family: 'monospace', monospace;
+  font-family: inherit; /* Inherit from body */
+  font-weight: bold;
+  border-radius: 4px;
+  transition: background-color 0.2s ease-in-out;
 }
 
 button:hover {
   background-color: #009acd;
 }
 
-input, textarea, select {
+button:disabled {
+  background-color: #555;
+  cursor: not-allowed;
+}
+
+/* Style for destructive action buttons */
+button.danger {
+  background-color: #e74c3c;
+  color: #ffffff;
+}
+button.danger:hover {
+  background-color: #c0392b;
+}
+
+input,
+textarea,
+select {
   background-color: #2c2c2c;
   color: #e0e0e0;
   border: 1px solid #00b8ff;
-  padding: 8px;
-  font-family: 'monospace', monospace;
+  padding: 10px; /* Increased padding */
+  font-family: inherit; /* Inherit from body */
   margin-bottom: 10px;
+  border-radius: 4px;
+  width: 100%; /* Make inputs take full width by default */
+  box-sizing: border-box; /* Ensure padding doesn't add to width */
+}
+
+textarea {
+  min-height: 80px;
+  resize: vertical;
 }
 
 ul {
@@ -51,32 +112,202 @@ ul {
 
 li {
   background-color: #1e1e1e;
-  padding: 10px;
-  margin-bottom: 8px;
-  border-left: 3px solid #00ff9d;
+  padding: 15px; /* Increased padding */
+  margin-bottom: 10px; /* Increased margin */
+  border-left: 4px solid #00ff9d; /* Slightly thicker border */
+  border-radius: 4px;
+  word-break: break-word; /* Prevent long strings from breaking layout */
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap; /* Allow tabs to wrap on smaller screens */
+  margin-bottom: 20px;
+  border-bottom: 1px solid #2c2c2c;
 }
 
 .tabs button {
-  background-color: #1e1e1e;
+  background-color: transparent; /* Cleaner look */
   color: #00b8ff;
-  border-bottom: 2px solid transparent;
+  border: none; /* Remove default border */
+  border-bottom: 3px solid transparent;
   margin-right: 5px;
+  margin-bottom: -1px; /* Align with the container's bottom border */
+  padding: 10px 15px;
+  font-weight: normal;
+  border-radius: 4px 4px 0 0; /* Rounded top corners */
 }
 
 .tabs button.active {
-  border-bottom: 2px solid #00ff9d;
+  border-bottom-color: #00ff9d;
   color: #00ff9d;
+  font-weight: bold;
 }
 
-.status-pending { color: #f39c12; }
-.status-downloading { color: #3498db; }
-.status-completed { color: #2ecc71; }
-.status-error { color: #e74c3c; }
-.status-extracting { color: #9b59b6; }
+.tab-content {
+  padding-top: 20px;
+}
+
+/* Form specific styling for better layout */
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+/* For inline elements like checkbox with label */
+.form-check {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.form-check input[type="checkbox"] {
+  width: auto; /* Override full width for checkboxes */
+  margin-right: 8px;
+}
+
+.status-pending {
+  color: #f39c12;
+  font-weight: bold;
+}
+.status-downloading {
+  color: #3498db;
+  font-weight: bold;
+}
+.status-completed {
+  color: #2ecc71;
+  font-weight: bold;
+}
+.status-error {
+  color: #e74c3c;
+  font-weight: bold;
+}
+.status-extracting {
+  color: #9b59b6;
+  font-weight: bold;
+}
 
 .storage-info {
   margin-top: 20px;
-  padding: 10px;
+  padding: 15px;
   background-color: #1e1e1e;
   border: 1px solid #00b8ff;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.message {
+  padding: 10px;
+  margin: 15px 0;
+  border-radius: 4px;
+  text-align: center;
+}
+.message.error {
+  background-color: rgba(231, 76, 60, 0.1); /* Lighter background for errors */
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+}
+.message.success {
+  background-color: rgba(
+    46,
+    204,
+    113,
+    0.1
+  ); /* Lighter background for success */
+  color: #2ecc71;
+  border: 1px solid #2ecc71;
+}
+
+/* App Header specific styles */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #2c2c2c;
+  flex-wrap: wrap; /* Allow header items to wrap */
+}
+
+.app-header h1 {
+  margin-top: 0;
+  margin-bottom: 0; /* Reset margin for h1 in header */
+  font-size: 1.6em; /* Adjust size for header */
+}
+
+.user-info button {
+  margin-left: 10px;
+}
+
+/* Login Form specific styles */
+.login-form-container {
+  max-width: 400px;
+  margin: 50px auto;
+  padding: 25px;
+  background-color: #1e1e1e;
+  border-radius: 5px;
+  border: 1px solid #00b8ff;
+}
+
+/* Media Queries for Responsiveness */
+
+/* Tablets and larger phones */
+@media (min-width: 600px) {
+  #root {
+    padding: 20px;
+  }
+  .app-header h1 {
+    font-size: 1.8em;
+  }
+}
+
+/* Small devices (phones, less than 600px) */
+@media (max-width: 599px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .app-header h1 {
+    margin-bottom: 10px; /* Space between title and user info when stacked */
+  }
+  .user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+  .user-info span {
+    margin-bottom: 10px;
+  }
+  .user-info button {
+    margin-left: 0;
+    width: 100%; /* Full width logout button */
+  }
+
+  /* Make form inputs and buttons more touch-friendly */
+  input,
+  textarea,
+  select,
+  button {
+    font-size: 16px; /* Prevent iOS zoom on focus */
+  }
+
+  /* Stack buttons in list items if they are too many */
+  li .actions-group {
+    display: flex;
+    flex-direction: column;
+  }
+  li .actions-group button {
+    width: 100%;
+    margin-top: 5px;
+    margin-right: 0; /* Reset margin for stacked buttons */
+  }
+  li .actions-group button:first-child {
+    margin-top: 10px; /* Add some space above the first button in stacked layout */
+  }
 }
