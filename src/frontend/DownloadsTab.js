@@ -4,9 +4,8 @@ function DownloadsTab({ displayAppMessage }) {
   const [downloads, setDownloads] = useState([]);
   const [newUrl, setNewUrl] = useState("");
   const [localError, setLocalError] = useState(""); // For form validation errors
-  // Removed local 'message' state, will use displayAppMessage for success/global error messages
-
   const [downloadProgressState, setDownloadProgressState] = useState({});
+  const [searchQuery, setSearchQuery] = useState(""); // Added for search functionality
 
   const fetchDownloads = useCallback(
     async (isInitialFetch = false) => {
@@ -29,7 +28,6 @@ function DownloadsTab({ displayAppMessage }) {
               const timeDiffSeconds = (currentTime - prev.prevTime) / 1000;
               const bytesDiff = d.downloadedBytes - prev.prevBytes;
               if (timeDiffSeconds > 0 && bytesDiff >= 0) {
-                // Allow 0 speed if no new bytes but time passed
                 const speed = bytesDiff / timeDiffSeconds;
                 newProgressState[d.id] = {
                   ...prev,
@@ -42,7 +40,7 @@ function DownloadsTab({ displayAppMessage }) {
                   ...prev,
                   prevBytes: d.downloadedBytes,
                   prevTime: currentTime,
-                }; // Keep old speed if not enough data
+                };
               }
             } else {
               newProgressState[d.id] = {
@@ -55,37 +53,34 @@ function DownloadsTab({ displayAppMessage }) {
             newProgressState[d.id] &&
             (d.status === "completed" || d.status === "error")
           ) {
-            // Keep speed for a short while after completion for visibility, or clear if errored
             if (
               d.status === "error" ||
               Date.now() - (newProgressState[d.id]?.lastVisibleTime || 0) > 5000
             ) {
-              // Clear after 5s for completed
               delete newProgressState[d.id];
             } else if (
               d.status === "completed" &&
               !newProgressState[d.id]?.lastVisibleTime
             ) {
-              newProgressState[d.id].lastVisibleTime = Date.now(); // Mark time for completed speed visibility
+              newProgressState[d.id].lastVisibleTime = Date.now();
             }
           }
         });
         setDownloadProgressState(newProgressState);
         setDownloads(data);
-        if (!isInitialFetch) setLocalError(""); // Clear local errors on successful fetch unless it's the very first one
+        if (!isInitialFetch) setLocalError("");
       } catch (e) {
         console.error("Failed to fetch downloads:", e);
-        // Use displayAppMessage for persistent fetch errors, or localError for transient ones
         if (isInitialFetch)
           displayAppMessage("Failed to load downloads. " + e.message, "error");
         else setLocalError("Failed to update downloads list. " + e.message);
       }
     },
-    [downloadProgressState, displayAppMessage]
+    [downloadProgressState, displayAppMessage] // Added displayAppMessage to dependency array
   );
 
   useEffect(() => {
-    fetchDownloads(true); // Pass true for initial fetch
+    fetchDownloads(true);
     const intervalId = setInterval(() => fetchDownloads(false), 2000);
     return () => clearInterval(intervalId);
   }, [fetchDownloads]);
@@ -154,7 +149,10 @@ function DownloadsTab({ displayAppMessage }) {
     if (idx !== -1) {
       return filePath.substring(idx + downloadsDirMarker.length);
     }
-    return filePath.substring(filePath.lastIndexOf("/") + 1);
+    // Fallback for paths not containing /downloads/ or if it's the root itself
+    const lastSlash = filePath.lastIndexOf("/");
+    if (lastSlash === -1) return filePath; // No slashes, return as is
+    return filePath.substring(lastSlash + 1) || filePath; // Return part after last slash, or full path if ends with /
   };
 
   const formatBytes = (bytes, decimals = 2) => {
@@ -164,9 +162,19 @@ function DownloadsTab({ displayAppMessage }) {
     const dm = decimals < 0 ? 0 : decimals;
     const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    if (i < 0 || i >= sizes.length) return "0 Bytes"; // Handle edge cases like log(negative) or too small/large
+    if (i < 0 || i >= sizes.length) return "0 Bytes";
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
   };
+
+  // Filter downloads based on search query
+  const filteredDownloads = downloads.filter((d) => {
+    const searchTerm = searchQuery.toLowerCase();
+    const urlMatch = d.url && d.url.toLowerCase().includes(searchTerm);
+    const filePathMatch =
+      d.filePath && formatPath(d.filePath).toLowerCase().includes(searchTerm);
+    const statusMatch = d.status && d.status.toLowerCase().includes(searchTerm);
+    return urlMatch || filePathMatch || statusMatch;
+  });
 
   return (
     <div>
@@ -184,8 +192,8 @@ function DownloadsTab({ displayAppMessage }) {
             id="downloadUrl"
             value={newUrl}
             onChange={(e) => setNewUrl(e.target.value)}
-            placeholder="Enter magnet link or URL to .torrent/.nzb file"
-            style={{ width: "calc(100% - 120px)", marginRight: "10px" }} // Adjust width based on button
+            placeholder="Enter magnet link or URL to .torrent/.nzb file" // This placeholder might need update based on actual backend capabilities
+            style={{ width: "calc(100% - 120px)", marginRight: "10px" }}
             required
           />
           <button type="submit" style={{ width: "110px" }}>
@@ -200,71 +208,91 @@ function DownloadsTab({ displayAppMessage }) {
       )}
 
       <h3>Current Downloads</h3>
-      {downloads.length === 0 ? (
-        <p>No active or recent downloads.</p>
+      {/* Search Input */}
+      <div className="form-group" style={{ marginBottom: "15px" }}>
+        <input
+          type="text"
+          placeholder="Search downloads (URL, filename, status)..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ width: "100%", padding: "8px", boxSizing: "border-box" }}
+        />
+      </div>
+
+      {filteredDownloads.length === 0 ? (
+        <p>
+          {searchQuery
+            ? "No downloads match your search."
+            : "No active or recent downloads."}
+        </p>
       ) : (
         <ul>
-          {downloads.map((d) => (
-            <li key={d.id} className="download-item">
-              <div className="download-item-details">
-                <p>
-                  <strong>URL:</strong> {d.url}
-                </p>
-                <p>
-                  <strong>Status:</strong>{" "}
-                  <span className={`status-${d.status.toLowerCase()}`}>
-                    {d.status}
-                  </span>
-                  {d.status === "downloading" && d.totalBytes > 0 && (
-                    <span>
-                      {" (" + formatBytes(d.downloadedBytes)} /{" "}
-                      {formatBytes(d.totalBytes)} -
-                      {((d.downloadedBytes / d.totalBytes) * 100).toFixed(1)}%
-                      {downloadProgressState[d.id] &&
-                        downloadProgressState[d.id].speed > 0 &&
-                        ` - ${formatBytes(
-                          downloadProgressState[d.id].speed
-                        )}/s`}
-                      {downloadProgressState[d.id] &&
-                        downloadProgressState[d.id].speed === 0 &&
-                        d.downloadedBytes > 0 &&
-                        ` - (stalled)`}
-                      )
+          {filteredDownloads.map(
+            (
+              d // Use filteredDownloads here
+            ) => (
+              <li key={d.id} className="download-item">
+                <div className="download-item-details">
+                  <p>
+                    <strong>URL:</strong> {d.url}
+                  </p>
+                  <p>
+                    <strong>Status:</strong>{" "}
+                    <span className={`status-${d.status.toLowerCase()}`}>
+                      {d.status}
                     </span>
-                  )}
-                  {d.status === "downloading" &&
-                    d.totalBytes === 0 &&
-                    d.downloadedBytes > 0 && (
+                    {d.status === "downloading" && d.totalBytes > 0 && (
                       <span>
-                        {" "}
-                        ({formatBytes(d.downloadedBytes)} downloaded, total size
-                        unknown)
+                        {" (" + formatBytes(d.downloadedBytes)} /{" "}
+                        {formatBytes(d.totalBytes)} -
+                        {((d.downloadedBytes / d.totalBytes) * 100).toFixed(1)}%
+                        {downloadProgressState[d.id] &&
+                          downloadProgressState[d.id].speed > 0 &&
+                          ` - ${formatBytes(
+                            downloadProgressState[d.id].speed
+                          )}/s`}
+                        {downloadProgressState[d.id] &&
+                          downloadProgressState[d.id].speed === 0 &&
+                          d.downloadedBytes > 0 &&
+                          ` - (stalled)`}
+                        )
                       </span>
                     )}
-                </p>
-                <p>
-                  <strong>File Path:</strong> {formatPath(d.filePath)}
-                </p>
-                {d.extractedPath && (
-                  <p>
-                    <strong>Extracted to:</strong> {formatPath(d.extractedPath)}
+                    {d.status === "downloading" &&
+                      d.totalBytes === 0 &&
+                      d.downloadedBytes > 0 && (
+                        <span>
+                          {" "}
+                          ({formatBytes(d.downloadedBytes)} downloaded, total
+                          size unknown)
+                        </span>
+                      )}
                   </p>
-                )}
-                <p>
-                  <strong>Queued:</strong>{" "}
-                  {new Date(d.createdAt).toLocaleString()}
-                </p>
-              </div>
-              <div className="actions-group" style={{ marginTop: "10px" }}>
-                <button
-                  onClick={() => handleDeleteDownload(d.id)}
-                  className="danger"
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
+                  <p>
+                    <strong>File Path:</strong> {formatPath(d.filePath)}
+                  </p>
+                  {d.extractedPath && (
+                    <p>
+                      <strong>Extracted to:</strong>{" "}
+                      {formatPath(d.extractedPath)}
+                    </p>
+                  )}
+                  <p>
+                    <strong>Queued:</strong>{" "}
+                    {new Date(d.createdAt).toLocaleString()}
+                  </p>
+                </div>
+                <div className="actions-group" style={{ marginTop: "10px" }}>
+                  <button
+                    onClick={() => handleDeleteDownload(d.id)}
+                    className="danger"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            )
+          )}
         </ul>
       )}
     </div>

@@ -4,56 +4,68 @@ function FilesTab({ displayAppMessage }) {
   const [files, setFiles] = useState([]);
   const [storageInfo, setStorageInfo] = useState(null);
   const [localError, setLocalError] = useState("");
-  const [localMessage, setLocalMessage] = useState(""); // For non-critical, tab-specific messages
+  // const [localMessage, setLocalMessage] = useState(""); // Replaced by displayAppMessage for consistency
   const [mediaInfo, setMediaInfo] = useState({});
   const [currentPath, setCurrentPath] = useState("");
   const [isUnarchiving, setIsUnarchiving] = useState({});
+  const [searchQuery, setSearchQuery] = useState(""); // Added for search functionality
 
   const clearMessages = () => {
     setLocalError("");
-    setLocalMessage("");
+    // setLocalMessage(""); // displayAppMessage handles success/info messages globally
   };
 
-  const fetchFiles = useCallback(async (pathToFetch) => {
-    clearMessages();
-    try {
-      const response = await fetch(
-        `/api/files/download_contents?path=${encodeURIComponent(pathToFetch)}`
-      );
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      setFiles(data);
-    } catch (e) {
-      console.error("Failed to fetch files:", e);
-      setLocalError(
-        `Failed to load files for "${pathToFetch || "/"}". ${e.message}`
-      );
-      setFiles([]);
-    }
-  }, []);
+  const fetchFiles = useCallback(
+    async (pathToFetch) => {
+      clearMessages();
+      try {
+        const response = await fetch(
+          `/api/files/download_contents?path=${encodeURIComponent(pathToFetch)}`
+        );
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(
+            errorData?.error || `HTTP error! status: ${response.status}`
+          );
+        }
+        const data = await response.json();
+        setFiles(data);
+      } catch (e) {
+        console.error("Failed to fetch files:", e);
+        setLocalError(
+          `Failed to load files for "${pathToFetch || "/"}". ${e.message}`
+        );
+        setFiles([]); // Clear files on error
+      }
+    },
+    [] // Removed fetchFiles from its own dependency array which is incorrect.
+    // Dependencies should be external values it closes over.
+  );
 
   const fetchStorageInfo = useCallback(async () => {
     try {
       const response = await fetch("/api/files/space");
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(
+          errorData?.error || `HTTP error! status: ${response.status}`
+        );
+      }
       const data = await response.json();
       setStorageInfo(data);
     } catch (e) {
       console.error("Failed to fetch storage info:", e);
-      // Not setting localError for this as it's less critical than file listing
+      // Optionally, display a non-critical error for storage info
+      // displayAppMessage(`Could not load storage info: ${e.message}`, "error");
     }
-  }, []);
+  }, []); // Removed displayAppMessage if not used here, or add if used.
 
   useEffect(() => {
     fetchFiles(currentPath);
     fetchStorageInfo();
-    const intervalId = setInterval(() => {
-      fetchFiles(currentPath);
-      fetchStorageInfo();
-    }, 10000);
-    return () => clearInterval(intervalId);
+    // Removed polling interval for files and storage for this example
+    // If you need polling, ensure dependencies are correct or use a different strategy
+    // For example, fetchFiles could be recalled after certain actions (delete, unarchive)
   }, [currentPath, fetchFiles, fetchStorageInfo]);
 
   const handleDeleteFile = async (itemRelativePath, itemName) => {
@@ -79,7 +91,8 @@ function FilesTab({ displayAppMessage }) {
         data.message || "Item deleted successfully.",
         "success"
       );
-      fetchFiles(currentPath);
+      fetchFiles(currentPath); // Refresh file list
+      fetchStorageInfo(); // Refresh storage info
       setMediaInfo((prev) => {
         const newState = { ...prev };
         delete newState[itemRelativePath];
@@ -108,7 +121,8 @@ function FilesTab({ displayAppMessage }) {
         data.message || `Successfully unarchived ${itemName}.`,
         "success"
       );
-      fetchFiles(currentPath);
+      fetchFiles(currentPath); // Refresh file list
+      fetchStorageInfo(); // Storage might change
     } catch (e) {
       console.error("Failed to unarchive:", e);
       displayAppMessage(
@@ -116,7 +130,11 @@ function FilesTab({ displayAppMessage }) {
         "error"
       );
     } finally {
-      setIsUnarchiving((prev) => ({ ...prev, [itemRelativePath]: false }));
+      setIsUnarchiving((prev) => {
+        const newState = { ...prev };
+        delete newState[itemRelativePath]; // More robust way to remove the key
+        return newState;
+      });
     }
   };
 
@@ -125,6 +143,7 @@ function FilesTab({ displayAppMessage }) {
     clearMessages();
     setMediaInfo((prev) => ({ ...prev, [key]: { loading: true } }));
     try {
+      // Assuming item.name is the filename/foldername to match
       const response = await fetch(
         `/api/media/match/${encodeURIComponent(item.name)}`
       );
@@ -132,33 +151,58 @@ function FilesTab({ displayAppMessage }) {
       if (!response.ok) {
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
-      if (Object.keys(data).length === 0) {
-        // Check if data is an empty object
+      if (Object.keys(data).length === 0 || data.Response === "False") {
         setMediaInfo((prev) => ({
           ...prev,
-          [key]: { error: "No IMDB info found.", title: "No info found" },
+          [key]: {
+            error: data.Error || "No IMDB info found.",
+            title: "No info found",
+          },
         }));
       } else {
         setMediaInfo((prev) => ({ ...prev, [key]: data }));
       }
     } catch (e) {
       console.error("Failed to match IMDB:", e);
-      setMediaInfo((prev) => ({ ...prev, [key]: { error: e.message } }));
+      setMediaInfo((prev) => ({
+        ...prev,
+        [key]: { error: e.message, title: "Error matching" },
+      }));
     }
   };
 
   const handleItemClick = (item) => {
     if (item.type === "folder" || item.type === "parent") {
       setCurrentPath(item.relativePath);
-      setFiles([]);
+      setFiles([]); // Clear old files before fetching new ones
+      setSearchQuery(""); // Clear search when navigating
       clearMessages();
     }
   };
 
   const handleItemKeyPress = (event, item) => {
     if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault(); // Prevent spacebar scroll
       handleItemClick(item);
     }
+  };
+
+  const handleDownloadFile = (itemRelativePath, itemName) => {
+    // Construct the URL based on the /serve_file/ route
+    // The README mentions: /serve_file/<path_to_file_in_downloads>
+    // itemRelativePath should be the <path_to_file_in_downloads>
+    const downloadUrl = `/serve_file/${encodeURIComponent(itemRelativePath)}`;
+
+    // To ensure the browser treats it as a download, especially for viewable file types,
+    // it's often better to use an anchor tag with a download attribute.
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.setAttribute("download", itemName); // Suggests a filename to the browser
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    displayAppMessage(`Preparing download for ${itemName}...`, "success");
   };
 
   const formatSize = (bytes) => {
@@ -171,6 +215,12 @@ function FilesTab({ displayAppMessage }) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
+  // Filter files based on search query
+  const filteredFiles = files.filter((item) => {
+    if (!searchQuery) return true; // No query, show all
+    return item.name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
   return (
     <div>
       <h2>File Management (Downloads Directory)</h2>
@@ -180,11 +230,7 @@ function FilesTab({ displayAppMessage }) {
           {localError}
         </p>
       )}
-      {localMessage && (
-        <p className="message success" style={{ marginBottom: "15px" }}>
-          {localMessage}
-        </p>
-      )}
+      {/* Removed localMessage, displayAppMessage is used globally */}
 
       {storageInfo && (
         <div className="storage-info" style={{ marginBottom: "20px" }}>
@@ -198,15 +244,31 @@ function FilesTab({ displayAppMessage }) {
       )}
 
       <h3>Files and Folders in: /downloads/{currentPath || ""}</h3>
-      {files.length === 0 && !localError && (
-        <p>Loading or directory is empty...</p>
+
+      {/* Search Input */}
+      <div className="form-group" style={{ marginBottom: "15px" }}>
+        <input
+          type="text"
+          placeholder="Search files/folders in current directory..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ width: "100%", padding: "8px", boxSizing: "border-box" }}
+        />
+      </div>
+
+      {filteredFiles.length === 0 && !localError && (
+        <p>
+          {searchQuery
+            ? "No items match your search."
+            : "Loading or directory is empty..."}
+        </p>
       )}
 
-      {files.length > 0 && (
+      {filteredFiles.length > 0 && (
         <ul>
-          {files.map((item) => (
+          {filteredFiles.map((item) => (
             <li
-              key={item.relativePath || item.name}
+              key={item.relativePath || item.name} // Ensure unique key
               className={`file-item type-${item.type}`}
               onClick={() =>
                 item.type === "folder" || item.type === "parent"
@@ -231,25 +293,43 @@ function FilesTab({ displayAppMessage }) {
                   item.type === "folder" || item.type === "parent"
                     ? "pointer"
                     : "default",
+                marginBottom: "15px", // Added for better spacing
+                paddingBottom: "10px", // Added for better spacing
+                borderBottom: "1px solid #333", // Separator
               }}
             >
               <p>
-                <strong>Name:</strong> {item.name} ({item.type})
+                <strong>Name:</strong> {item.name}{" "}
+                <span style={{ color: "#aaa" }}>({item.type})</span>
               </p>
               {item.type !== "parent" && (
                 <p>
                   <strong>Size:</strong> {formatSize(item.size)}
                 </p>
               )}
-              {item.type !== "parent" && (
-                <p>
-                  <strong>Created:</strong>{" "}
-                  {new Date(item.createdAt).toLocaleString()}
-                </p>
-              )}
+              {item.type !== "parent" &&
+                item.createdAt && ( // Check if createdAt exists
+                  <p>
+                    <strong>Created:</strong>{" "}
+                    {new Date(item.createdAt).toLocaleString()}
+                  </p>
+                )}
 
               {(item.type === "file" || item.type === "folder") && (
                 <div className="actions-group" style={{ marginTop: "10px" }}>
+                  {/* Download Button - only for files */}
+                  {item.type === "file" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent li click event
+                        handleDownloadFile(item.relativePath, item.name);
+                      }}
+                      disabled={isUnarchiving[item.relativePath]}
+                      style={{ marginRight: "5px", marginBottom: "5px" }}
+                    >
+                      Download File
+                    </button>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -305,7 +385,7 @@ function FilesTab({ displayAppMessage }) {
                           : "Unarchive"}
                       </button>
                     )}
-                  {item.type !== "parent" && (
+                  {item.type !== "parent" && ( // Delete button should not be for ".."
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -329,7 +409,7 @@ function FilesTab({ displayAppMessage }) {
                     style={{
                       marginTop: "10px",
                       paddingLeft: "15px",
-                      borderLeft: "2px solid #00b8ff",
+                      borderLeft: "2px solid #00b8ff", // Retro blue accent
                     }}
                   >
                     {mediaInfo[item.relativePath].error && (
@@ -339,18 +419,28 @@ function FilesTab({ displayAppMessage }) {
                     )}
                     {mediaInfo[item.relativePath].title &&
                       mediaInfo[item.relativePath].title !==
-                        "No info found" && (
+                        "No info found" && ( // Check against actual message from API
                         <>
                           <h4>
-                            {mediaInfo[item.relativePath].title} (
-                            {mediaInfo[item.relativePath].year})
+                            {mediaInfo[item.relativePath].Title ||
+                              mediaInfo[item.relativePath].title}{" "}
+                            (
+                            {mediaInfo[item.relativePath].Year ||
+                              mediaInfo[item.relativePath].year}
+                            )
                           </h4>
-                          {mediaInfo[item.relativePath].posterUrl &&
-                            mediaInfo[item.relativePath].posterUrl !==
+                          {(mediaInfo[item.relativePath].Poster ||
+                            mediaInfo[item.relativePath].posterUrl) &&
+                            (mediaInfo[item.relativePath].Poster ||
+                              mediaInfo[item.relativePath].posterUrl) !==
                               "N/A" && (
                               <img
-                                src={mediaInfo[item.relativePath].posterUrl}
+                                src={
+                                  mediaInfo[item.relativePath].Poster ||
+                                  mediaInfo[item.relativePath].posterUrl
+                                }
                                 alt={`Poster for ${
+                                  mediaInfo[item.relativePath].Title ||
                                   mediaInfo[item.relativePath].title
                                 }`}
                                 style={{
@@ -360,24 +450,29 @@ function FilesTab({ displayAppMessage }) {
                                   marginRight: "10px",
                                   marginBottom: "5px",
                                   borderRadius: "3px",
+                                  border: "1px solid #222", // Subtle border
                                 }}
                               />
                             )}
                           <p>
                             <strong>Rating:</strong>{" "}
-                            {mediaInfo[item.relativePath].rating || "N/A"}
+                            {mediaInfo[item.relativePath].imdbRating ||
+                              mediaInfo[item.relativePath].rating ||
+                              "N/A"}
                           </p>
                           <p>
                             <strong>Genres:</strong>{" "}
-                            {mediaInfo[item.relativePath].genres
-                              ? mediaInfo[item.relativePath].genres.join(", ")
-                              : "N/A"}
+                            {mediaInfo[item.relativePath].Genre ||
+                              (mediaInfo[item.relativePath].genres
+                                ? mediaInfo[item.relativePath].genres.join(", ")
+                                : "N/A")}
                           </p>
                           <p style={{ clear: "both" }}>
                             <strong>Plot:</strong>{" "}
-                            {mediaInfo[item.relativePath].plot || "N/A"}
+                            {mediaInfo[item.relativePath].Plot ||
+                              mediaInfo[item.relativePath].plot ||
+                              "N/A"}
                           </p>
-                          {/* <div style={{clear: 'both'}}></div> Ensure plot is cleared if poster is tall*/}
                         </>
                       )}
                   </div>
