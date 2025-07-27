@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 
 function TorrentsTab({ displayAppMessage }) {
   const [torrents, setTorrents] = useState([]);
-  const [localError, setLocalError] = useState(""); // For form validation errors
-  // Removed local 'message' state, using displayAppMessage now.
+  const [localError, setLocalError] = useState("");
   const [isCreatingTorrent, setIsCreatingTorrent] = useState(false);
 
   const [sourcePath, setSourcePath] = useState("");
@@ -11,29 +10,35 @@ function TorrentsTab({ displayAppMessage }) {
   const [webseeds, setWebseeds] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [announceList, setAnnounceList] = useState("");
+  const [sourceIsDir, setSourceIsDir] = useState(false); // ADDED: State to track if source is a directory
 
   useEffect(() => {
     const preselectedPath = sessionStorage.getItem("torrentSourcePath");
     const nameSuggestion = sessionStorage.getItem(
       "torrentSourceNameSuggestion"
     );
+    // ADDED: Read the isDirectory flag from session storage
+    const isDir = sessionStorage.getItem("torrentSourceIsDir") === "true";
+
     let infoMessage = "";
 
     if (preselectedPath) {
       setSourcePath(preselectedPath);
-      sessionStorage.removeItem("torrentSourcePath"); // Clear after use
+      setSourceIsDir(isDir); // ADDED: Set the new state
+      // Clean up all related session storage items
+      sessionStorage.removeItem("torrentSourcePath");
+      sessionStorage.removeItem("torrentSourceNameSuggestion");
+      sessionStorage.removeItem("torrentSourceIsDir");
       infoMessage += `Source path "${preselectedPath}" pre-filled. `;
     }
 
     if (nameSuggestion) {
-      const suggestedName = nameSuggestion;
-      setTorrentName(suggestedName);
-      sessionStorage.removeItem("torrentSourceNameSuggestion"); // Clear after use
-      infoMessage += `Torrent name "${suggestedName}" suggested.`;
+      setTorrentName(nameSuggestion);
+      infoMessage += `Torrent name "${nameSuggestion}" suggested.`;
     }
 
     if (infoMessage) {
-      displayAppMessage(infoMessage.trim(), "success", 5000); // Show for 5 seconds
+      displayAppMessage(infoMessage.trim(), "success", 5000);
     }
   }, [displayAppMessage]);
 
@@ -45,7 +50,7 @@ function TorrentsTab({ displayAppMessage }) {
           throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         setTorrents(data);
-        if (!isInitialFetch) setLocalError(""); // Clear local errors on successful fetch
+        if (!isInitialFetch) setLocalError("");
       } catch (e) {
         console.error("Failed to fetch torrents:", e);
         if (isInitialFetch)
@@ -99,12 +104,12 @@ function TorrentsTab({ displayAppMessage }) {
         data.message || "Torrent created successfully.",
         "success"
       );
-      // Clear form
       setSourcePath("");
       setTorrentName("");
       setWebseeds("");
       setIsPrivate(false);
       setAnnounceList("");
+      setSourceIsDir(false); // Reset the directory flag
       fetchTorrents();
     } catch (e) {
       console.error("Failed to create torrent:", e);
@@ -144,6 +149,36 @@ function TorrentsTab({ displayAppMessage }) {
     window.location.href = `/api/torrents/${id}/file`;
   };
 
+  // ADDED: New handler function for suggesting webseed
+  const handleSuggestWebseed = () => {
+    let webseedUrl = "";
+
+    if (sourceIsDir) {
+      // For directories, point to the root of the serving path
+      webseedUrl = `${window.location.origin}/serve_file/`;
+    } else {
+      // For files, point directly to the file, ensuring path is encoded
+      const encodedPath = sourcePath
+        .split("/")
+        .map(encodeURIComponent)
+        .join("/");
+      webseedUrl = `${window.location.origin}/serve_file/${encodedPath}`;
+    }
+
+    setWebseeds((prev) => {
+      const existingSeeds = prev
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (existingSeeds.includes(webseedUrl)) {
+        return prev; // Avoid duplicates
+      }
+      return prev ? `${prev}, ${webseedUrl}` : webseedUrl;
+    });
+
+    displayAppMessage("Self webseed URL added.", "success", 2000);
+  };
+
   const formatTorrentSourcePath = (sP) => {
     if (!sP) return "N/A";
     return sP;
@@ -152,7 +187,6 @@ function TorrentsTab({ displayAppMessage }) {
   return (
     <div>
       <h2>Torrent Management</h2>
-
       <h3>Create New Torrent</h3>
       <form onSubmit={handleCreateTorrent} style={{ marginBottom: "30px" }}>
         <div className="form-group">
@@ -165,11 +199,10 @@ function TorrentsTab({ displayAppMessage }) {
             id="sourcePath"
             value={sourcePath}
             onChange={(e) => setSourcePath(e.target.value)}
-            placeholder="e.g., media/movie.mkv or archives/collection.zip"
+            placeholder="e.g., media/movie.mkv or archives/collection"
             required
           />
         </div>
-
         <div className="form-group">
           <label htmlFor="torrentName">Torrent Name:</label>
           <input
@@ -193,33 +226,18 @@ function TorrentsTab({ displayAppMessage }) {
             placeholder="http://example.com/seed1, http://example.com/seed2"
           />
         </div>
-        {sourcePath &&
-          !sourcePath.endsWith("/") &&
-          !sourcePath.endsWith("\\") && (
-            <button
-              type="button"
-              onClick={() => {
-                const webseedUrl = `${window.location.origin}/serve_file/${sourcePath}`; // Ensure this path is correct for your public file serving
-                setWebseeds((prev) =>
-                  prev
-                    ? `${prev
-                        .split(",")
-                        .map((s) => s.trim())
-                        .filter((s) => s !== webseedUrl)
-                        .join(", ")}, ${webseedUrl}`
-                    : webseedUrl
-                );
-                displayAppMessage(
-                  "Self webseed URL added/updated.",
-                  "success",
-                  2000
-                );
-              }}
-              style={{ marginBottom: "10px", marginRight: "10px" }}
-            >
-              Suggest Self as Webseed
-            </button>
-          )}
+
+        {/* MODIFIED: Simplified the button's conditional render and attached the new handler */}
+        {sourcePath && (
+          <button
+            type="button"
+            onClick={handleSuggestWebseed}
+            style={{ marginBottom: "10px", marginRight: "10px" }}
+          >
+            Suggest Self as Webseed
+          </button>
+        )}
+
         <div className="form-group">
           <label htmlFor="announceList">
             Trackers (comma-separated, optional, defaults will be used if
@@ -230,10 +248,9 @@ function TorrentsTab({ displayAppMessage }) {
             id="announceList"
             value={announceList}
             onChange={(e) => setAnnounceList(e.target.value)}
-            placeholder="udp://tracker.opentrackr.org:1337/announce, udp://tracker.openbittorrent.com:6969/announce"
+            placeholder="udp://tracker.opentrackr.org:1337/announce, ..."
           />
         </div>
-
         <div className="form-check" style={{ marginBottom: "15px" }}>
           <input
             type="checkbox"
@@ -247,7 +264,6 @@ function TorrentsTab({ displayAppMessage }) {
           {isCreatingTorrent ? "Creating..." : "Create Torrent"}
         </button>
       </form>
-
       {isCreatingTorrent && (
         <p style={{ margin: "15px 0", color: "#3498db" }}>
           Creating torrent, please wait... This might take a while for large
@@ -259,7 +275,6 @@ function TorrentsTab({ displayAppMessage }) {
           {localError}
         </p>
       )}
-
       <h3>Existing Torrents</h3>
       {torrents.length === 0 ? (
         <p>No torrents created yet.</p>
