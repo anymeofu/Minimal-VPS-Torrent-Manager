@@ -8,7 +8,7 @@
     "build:frontend": "esbuild src/frontend/index.js --bundle --outfile=public/bundle.js --loader:.js=jsx --minify",
     "watch:frontend": "esbuild src/frontend/index.js --bundle --outfile=public/bundle.js --loader:.js=jsx --sourcemap --watch",
     "watch:backend": "nodemon src/index.js",
-    "dev": "echo \"Please run 'npm run watch:frontend' and 'npm run watch:backend' in separate terminals\" && exit 1",
+    "dev": "concurrently \"npm:watch:*\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -35,6 +35,7 @@
     "unrar.js": "^0.2.1"
   },
   "devDependencies": {
+    "concurrently": "^9.2.0",
     "esbuild": "^0.14.0",
     "nodemon": "^2.0.15"
   }
