@@ -148,27 +148,36 @@ function TorrentsTab({ displayAppMessage }) {
   };
 
   const handleSuggestWebseed = () => {
+    // --- START: DEBUGGING LINES ---
+    console.log("--- Debugging Webseed ---");
+    console.log("1. Original sourcePath from state:", sourcePath);
+    console.log("2. Is it a directory? (sourceIsDir):", sourceIsDir);
+    // --- END: DEBUGGING LINES ---
+
     let webseedUrl = "";
+    const normalizedPath = sourcePath.replace(/\\/g, "/");
 
     if (sourceIsDir) {
-      // CHANGED: Logic to correctly find the parent directory for a nested folder
-      const lastSlashIndex = sourcePath.lastIndexOf("/");
-      const parentPath =
-        lastSlashIndex > -1 ? sourcePath.substring(0, lastSlashIndex + 1) : "";
+      const pathParts = normalizedPath.split("/");
+      pathParts.pop();
 
-      const encodedParentPath = parentPath
-        .split("/")
-        .map(encodeURIComponent)
-        .join("/");
-      webseedUrl = `${window.location.origin}/serve_file/${encodedParentPath}`;
+      if (pathParts.length > 0) {
+        const parentPath = pathParts.map(encodeURIComponent).join("/") + "/";
+        webseedUrl = `${window.location.origin}/serve_file/${parentPath}`;
+      } else {
+        webseedUrl = `${window.location.origin}/serve_file/`;
+      }
     } else {
-      // Logic for files remains the same
-      const encodedPath = sourcePath
+      const encodedPath = normalizedPath
         .split("/")
         .map(encodeURIComponent)
         .join("/");
       webseedUrl = `${window.location.origin}/serve_file/${encodedPath}`;
     }
+
+    // --- MORE DEBUGGING ---
+    console.log("3. Final generated webseedUrl:", webseedUrl);
+    // --- END DEBUGGING ---
 
     setWebseeds((prev) => {
       const existingSeeds = prev
