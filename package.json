@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node src/index.js",
     "build:frontend": "esbuild src/frontend/index.js --bundle --outfile=public/bundle.js --loader:.js=jsx --minify",
-    "dev": "npm run build:frontend && nodemon src/index.js",
+    "watch:frontend": "esbuild src/frontend/index.js --bundle --outfile=public/bundle.js --loader:.js=jsx --sourcemap --watch",
+    "watch:backend": "nodemon src/index.js",
+    "dev": "echo \"Please run 'npm run watch:frontend' and 'npm run watch:backend' in separate terminals\" && exit 1",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
