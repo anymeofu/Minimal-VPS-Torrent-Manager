@@ -10,22 +10,20 @@ function TorrentsTab({ displayAppMessage }) {
   const [webseeds, setWebseeds] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [announceList, setAnnounceList] = useState("");
-  const [sourceIsDir, setSourceIsDir] = useState(false); // ADDED: State to track if source is a directory
+  const [sourceIsDir, setSourceIsDir] = useState(false);
 
   useEffect(() => {
     const preselectedPath = sessionStorage.getItem("torrentSourcePath");
     const nameSuggestion = sessionStorage.getItem(
       "torrentSourceNameSuggestion"
     );
-    // ADDED: Read the isDirectory flag from session storage
     const isDir = sessionStorage.getItem("torrentSourceIsDir") === "true";
 
     let infoMessage = "";
 
     if (preselectedPath) {
       setSourcePath(preselectedPath);
-      setSourceIsDir(isDir); // ADDED: Set the new state
-      // Clean up all related session storage items
+      setSourceIsDir(isDir);
       sessionStorage.removeItem("torrentSourcePath");
       sessionStorage.removeItem("torrentSourceNameSuggestion");
       sessionStorage.removeItem("torrentSourceIsDir");
@@ -109,7 +107,7 @@ function TorrentsTab({ displayAppMessage }) {
       setWebseeds("");
       setIsPrivate(false);
       setAnnounceList("");
-      setSourceIsDir(false); // Reset the directory flag
+      setSourceIsDir(false);
       fetchTorrents();
     } catch (e) {
       console.error("Failed to create torrent:", e);
@@ -149,15 +147,22 @@ function TorrentsTab({ displayAppMessage }) {
     window.location.href = `/api/torrents/${id}/file`;
   };
 
-  // ADDED: New handler function for suggesting webseed
   const handleSuggestWebseed = () => {
     let webseedUrl = "";
 
     if (sourceIsDir) {
-      // For directories, point to the root of the serving path
-      webseedUrl = `${window.location.origin}/serve_file/`;
+      // CHANGED: Logic to correctly find the parent directory for a nested folder
+      const lastSlashIndex = sourcePath.lastIndexOf("/");
+      const parentPath =
+        lastSlashIndex > -1 ? sourcePath.substring(0, lastSlashIndex + 1) : "";
+
+      const encodedParentPath = parentPath
+        .split("/")
+        .map(encodeURIComponent)
+        .join("/");
+      webseedUrl = `${window.location.origin}/serve_file/${encodedParentPath}`;
     } else {
-      // For files, point directly to the file, ensuring path is encoded
+      // Logic for files remains the same
       const encodedPath = sourcePath
         .split("/")
         .map(encodeURIComponent)
@@ -171,7 +176,7 @@ function TorrentsTab({ displayAppMessage }) {
         .map((s) => s.trim())
         .filter(Boolean);
       if (existingSeeds.includes(webseedUrl)) {
-        return prev; // Avoid duplicates
+        return prev;
       }
       return prev ? `${prev}, ${webseedUrl}` : webseedUrl;
     });
@@ -227,7 +232,6 @@ function TorrentsTab({ displayAppMessage }) {
           />
         </div>
 
-        {/* MODIFIED: Simplified the button's conditional render and attached the new handler */}
         {sourcePath && (
           <button
             type="button"
